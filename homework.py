@@ -4,8 +4,9 @@ import logging
 
 from dotenv import load_dotenv
 import requests
-from telegram import Bot
-from telegram.error import TelegramError
+from telebot import TeleBot
+from telebot.apihelper import ApiTelegramException
+
 
 load_dotenv()
 
@@ -44,7 +45,7 @@ def send_message(bot, message):
     try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
         logging.debug(f'Сообщение в Telegram отправлено: {message}')
-    except TelegramError as error:
+    except ApiTelegramException as error:
         logging.error(f'Сбой при отправке сообщения в Telegram: {error}')
 
 
@@ -98,7 +99,7 @@ def main():
     if not check_tokens():
         return
 
-    bot = Bot(token=TELEGRAM_TOKEN)
+    bot = TeleBot(TELEGRAM_TOKEN)
     timestamp = int(time.time())
 
     while True:
