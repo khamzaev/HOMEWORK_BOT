@@ -7,6 +7,7 @@ import requests
 from telebot import TeleBot
 from telebot.apihelper import ApiTelegramException, ApiException
 
+
 load_dotenv()
 
 PRACTICUM_TOKEN = os.getenv('PRACT_TOKEN')
