@@ -5,8 +5,7 @@ import logging
 from dotenv import load_dotenv
 import requests
 from telebot import TeleBot
-from telebot.apihelper import ApiTelegramException
-
+from telebot.apihelper import ApiTelegramException, ApiException
 
 load_dotenv()
 
@@ -45,7 +44,7 @@ def send_message(bot, message):
     try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
         logging.debug(f'Сообщение в Telegram отправлено: {message}')
-    except ApiTelegramException as error:
+    except (ApiTelegramException, ApiException) as error:
         logging.error(f'Сбой при отправке сообщения в Telegram: {error}')
 
 
@@ -54,13 +53,17 @@ def get_api_answer(timestamp):
     params = {'from_date': timestamp}
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
-        response.raise_for_status()
+        if response.status_code != 200:
+            logging.error(
+                f'Эндпоинт {ENDPOINT} вернул код {response.status_code}'
+            )
+            raise requests.RequestException(
+                f'Эндпоинт {ENDPOINT} вернул код {response.status_code}'
+            )
         return response.json()
     except requests.RequestException as error:
-        if isinstance(error, requests.exceptions.ConnectionError):
-            logging.error(f'Эндпоинт недоступен: {ENDPOINT}')
         logging.error(f'Ошибка при запросе к API: {error}')
-        raise
+        raise RuntimeError(f'Ошибка при запросе к API: {error}')
 
 
 def check_response(response):
@@ -116,7 +119,12 @@ def main():
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             logging.error(message)
-            send_message(bot, message)
+            try:
+                send_message(bot, message)
+            except (ApiTelegramException, ApiException) as send_error:
+                logging.error(
+                    f'Ошибка при отправке сообщения в Telegram: {send_error}'
+                )
             time.sleep(RETRY_PERIOD)
 
 
