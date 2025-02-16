@@ -35,7 +35,9 @@ def check_tokens():
     missing_tokens = [name for name, token in tokens.items() if not token]
     if missing_tokens:
         for token in missing_tokens:
-            logging.critical(f'Отсутствует обязательная переменная окружения: {token}')
+            logging.critical(
+                f'Отсутствует обязательная переменная окружения: {token}'
+            )
         return False
     return True
 
@@ -48,7 +50,9 @@ def send_message(bot, message):
     except ApiException as error:
         logging.error(f'Сбой при отправке сообщения в Telegram: {error}')
     except requests.RequestException as error:
-        logging.error(f'Ошибка сети при отправке сообщения в Telegram: {error}')
+        logging.error(
+            f'Ошибка сети при отправке сообщения в Telegram: {error}'
+        )
 
 
 def get_api_answer(timestamp):
@@ -61,8 +65,12 @@ def get_api_answer(timestamp):
         raise RuntimeError(f'Ошибка при запросе к API: {error}')
 
     if response.status_code != 200:
-        logging.error(f'Эндпоинт {ENDPOINT} вернул код {response.status_code}')
-        raise RuntimeError(f'Эндпоинт {ENDPOINT} вернул код {response.status_code}')
+        logging.error(
+            f'Эндпоинт {ENDPOINT} вернул код {response.status_code}'
+        )
+        raise RuntimeError(
+            f'Эндпоинт {ENDPOINT} вернул код {response.status_code}'
+        )
 
     return response.json()
 
@@ -139,7 +147,9 @@ def main():
                     send_message(bot, message)
                     last_message = message
                 except ApiException as send_error:
-                    logging.error(f'Ошибка при отправке сообщения в Telegram: {send_error}')
+                    logging.error(
+                        f'Ошибка при отправке сообщения в Telegram: {send_error}'
+                    )
         time.sleep(RETRY_PERIOD)
 
 
