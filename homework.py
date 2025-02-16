@@ -1,18 +1,18 @@
 import os
 import time
 import logging
+import sys
 
 from dotenv import load_dotenv
 import requests
 from telebot import TeleBot
-from telebot.apihelper import ApiTelegramException, ApiException
-
+from telebot.apihelper import ApiException
 
 load_dotenv()
 
-PRACTICUM_TOKEN = os.getenv('PRACT_TOKEN')
-TELEGRAM_TOKEN = os.getenv('TOKEN')
-TELEGRAM_CHAT_ID = os.getenv('CHAT_ID')
+PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
+TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 RETRY_PERIOD = 600
 ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
@@ -24,20 +24,21 @@ HOMEWORK_VERDICTS = {
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s, %(levelname)s, %(message)s',
-    handlers=[logging.StreamHandler()]
-)
-
 
 def check_tokens():
     """Проверка доступности переменных окружения."""
-    tokens = [PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]
-    if all(tokens):
-        return True
-    logging.critical('Отсутствуют обязательные переменные окружения')
-    return False
+    tokens = {
+        'PRACTICUM_TOKEN': PRACTICUM_TOKEN,
+        'TELEGRAM_TOKEN': TELEGRAM_TOKEN,
+        'TELEGRAM_CHAT_ID': TELEGRAM_CHAT_ID
+    }
+    missing_tokens = [name for name, token in tokens.items() if not token]
+    if missing_tokens:
+        logging.critical(
+            f'Отсутствуют обязательные переменные окружения: {", ".join(missing_tokens)}'
+        )
+        return False
+    return True
 
 
 def send_message(bot, message):
@@ -45,26 +46,36 @@ def send_message(bot, message):
     try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
         logging.debug(f'Сообщение в Telegram отправлено: {message}')
-    except (ApiTelegramException, ApiException) as error:
+    except ApiException as error:
         logging.error(f'Сбой при отправке сообщения в Telegram: {error}')
+    except requests.RequestException as error:
+        logging.error(
+            f'Ошибка сети при отправке сообщения в Telegram: {error}'
+        )
 
 
 def get_api_answer(timestamp):
     """Запрос к API-сервису."""
     params = {'from_date': timestamp}
     try:
-        response = requests.get(ENDPOINT, headers=HEADERS, params=params)
-        if response.status_code != 200:
-            logging.error(
-                f'Эндпоинт {ENDPOINT} вернул код {response.status_code}'
-            )
-            raise requests.RequestException(
-                f'Эндпоинт {ENDPOINT} вернул код {response.status_code}'
-            )
-        return response.json()
+        response = requests.get(
+            ENDPOINT,
+            headers=HEADERS,
+            params=params
+        )
     except requests.RequestException as error:
         logging.error(f'Ошибка при запросе к API: {error}')
         raise RuntimeError(f'Ошибка при запросе к API: {error}')
+
+    if response.status_code != 200:
+        logging.error(
+            f'Эндпоинт {ENDPOINT} вернул код {response.status_code}'
+        )
+        raise RuntimeError(
+            f'Эндпоинт {ENDPOINT} вернул код {response.status_code}'
+        )
+
+    return response.json()
 
 
 def check_response(response):
@@ -83,6 +94,9 @@ def check_response(response):
 
 def parse_status(homework):
     """Извлечение статуса работы из ответа API."""
+    if not isinstance(homework, dict):
+        logging.error('Домашняя работа не является словарем')
+        raise TypeError('Домашняя работа не является словарем')
     if 'homework_name' not in homework:
         logging.error('Ключ "homework_name" отсутствует в ответе API')
         raise KeyError('Ключ "homework_name" отсутствует в ответе API')
@@ -100,11 +114,21 @@ def parse_status(homework):
 
 def main():
     """Основная логика работы бота."""
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s, %(levelname)s, %(message)s',
+        handlers=[
+            logging.StreamHandler(),
+            logging.FileHandler('bot.log')
+        ]
+    )
+
     if not check_tokens():
-        return
+        sys.exit('Отсутствуют обязательные переменные окружения')
 
     bot = TeleBot(TELEGRAM_TOKEN)
     timestamp = int(time.time())
+    last_message = None
 
     while True:
         try:
@@ -112,21 +136,24 @@ def main():
             homeworks = check_response(response)
             if homeworks:
                 message = parse_status(homeworks[0])
-                send_message(bot, message)
-                timestamp = response.get('current_date', timestamp)
+                if message != last_message:
+                    send_message(bot, message)
+                    last_message = message
+                    timestamp = response.get('current_date', timestamp)
             else:
                 logging.debug('Отсутствие новых статусов в ответе API')
-            time.sleep(RETRY_PERIOD)
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             logging.error(message)
-            try:
-                send_message(bot, message)
-            except (ApiTelegramException, ApiException) as send_error:
-                logging.error(
-                    f'Ошибка при отправке сообщения в Telegram: {send_error}'
-                )
-            time.sleep(RETRY_PERIOD)
+            if message != last_message:
+                try:
+                    send_message(bot, message)
+                    last_message = message
+                except ApiException as send_error:
+                    logging.error(
+                        f'Ошибка при отправке сообщения в Telegram: {send_error}'
+                    )
+        time.sleep(RETRY_PERIOD)
 
 
 if __name__ == '__main__':
