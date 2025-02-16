@@ -10,9 +10,9 @@ from telebot.apihelper import ApiException
 
 load_dotenv()
 
-PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
-TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
-TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+PRACTICUM_TOKEN = os.getenv('PRACT_TOKEN')
+TELEGRAM_TOKEN = os.getenv('TOKEN')
+TELEGRAM_CHAT_ID = os.getenv('CHAT_ID')
 
 RETRY_PERIOD = 600
 ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
@@ -59,7 +59,11 @@ def get_api_answer(timestamp):
     """Запрос к API-сервису."""
     params = {'from_date': timestamp}
     try:
-        response = requests.get(ENDPOINT, headers=HEADERS, params=params)
+        response = requests.get(
+            ENDPOINT,
+            headers=HEADERS,
+            params=params
+        )
     except requests.RequestException as error:
         logging.error(f'Ошибка при запросе к API: {error}')
         raise RuntimeError(f'Ошибка при запросе к API: {error}')
