@@ -152,7 +152,8 @@ def main():
                     last_message = message
                 except ApiException as send_error:
                     logging.error(
-                        f'Ошибка при отправке сообщения в Telegram: {send_error}'
+                        f'Ошибка при отправке сообщения в Telegram:'
+                        f'{send_error}'
                     )
         time.sleep(RETRY_PERIOD)
 
