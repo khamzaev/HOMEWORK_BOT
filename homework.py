@@ -47,12 +47,16 @@ def send_message(bot, message):
     try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
         logging.debug(f'Сообщение в Telegram отправлено: {message}')
+        return True
     except ApiException as error:
-        logging.error(f'Сбой при отправке сообщения в Telegram: {error}')
+        logging.error(
+            f'Сбой при отправке сообщения в Telegram: {error}'
+        )
     except requests.RequestException as error:
         logging.error(
             f'Ошибка сети при отправке сообщения в Telegram: {error}'
         )
+    return False
 
 
 def get_api_answer(timestamp):
@@ -78,13 +82,10 @@ def get_api_answer(timestamp):
 def check_response(response):
     """Проверка ответа API на соответствие документации."""
     if not isinstance(response, dict):
-        logging.error('Ответ API не является словарем')
         raise TypeError('Ответ API не является словарем')
     if 'homeworks' not in response:
-        logging.error('Ключ "homeworks" отсутствует в ответе API')
         raise KeyError('Ключ "homeworks" отсутствует в ответе API')
     if not isinstance(response['homeworks'], list):
-        logging.error('Ответ API по ключу "homeworks" не является списком')
         raise TypeError('Ответ API по ключу "homeworks" не является списком')
     return response['homeworks']
 
@@ -92,18 +93,14 @@ def check_response(response):
 def parse_status(homework):
     """Извлечение статуса работы из ответа API."""
     if not isinstance(homework, dict):
-        logging.error('Домашняя работа не является словарем')
         raise TypeError('Домашняя работа не является словарем')
     if 'homework_name' not in homework:
-        logging.error('Ключ "homework_name" отсутствует в ответе API')
         raise KeyError('Ключ "homework_name" отсутствует в ответе API')
     if 'status' not in homework:
-        logging.error('Ключ "status" отсутствует в ответе API')
         raise KeyError('Ключ "status" отсутствует в ответе API')
     homework_name = homework['homework_name']
     status = homework['status']
     if status not in HOMEWORK_VERDICTS:
-        logging.error(f'Неизвестный статус домашней работы: {status}')
         raise ValueError(f'Неизвестный статус домашней работы: {status}')
     verdict = HOMEWORK_VERDICTS[status]
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
