@@ -138,13 +138,13 @@ def main():
 
 
 logging.basicConfig(
-        level=logging.DEBUG,
-        format='%(asctime)s, %(levelname)s, %(message)s',
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler('bot.log')
-        ]
-    )
+    level=logging.DEBUG,
+    format='%(asctime)s, %(levelname)s, %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('bot.log')
+    ]
+)
 
 
 if __name__ == '__main__':
