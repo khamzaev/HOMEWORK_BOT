@@ -65,13 +65,9 @@ def get_api_answer(timestamp):
             params=params
         )
     except requests.RequestException as error:
-        logging.error(f'Ошибка при запросе к API: {error}')
         raise RuntimeError(f'Ошибка при запросе к API: {error}')
 
     if response.status_code != 200:
-        logging.error(
-            f'Эндпоинт {ENDPOINT} вернул код {response.status_code}'
-        )
         raise RuntimeError(
             f'Эндпоинт {ENDPOINT} вернул код {response.status_code}'
         )
@@ -115,15 +111,6 @@ def parse_status(homework):
 
 def main():
     """Основная логика работы бота."""
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format='%(asctime)s, %(levelname)s, %(message)s',
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler('bot.log')
-        ]
-    )
-
     if not check_tokens():
         sys.exit('Отсутствуют обязательные переменные окружения')
 
@@ -137,8 +124,7 @@ def main():
             homeworks = check_response(response)
             if homeworks:
                 message = parse_status(homeworks[0])
-                if message != last_message:
-                    send_message(bot, message)
+                if message != last_message and send_message(bot, message):
                     last_message = message
                     timestamp = response.get('current_date', timestamp)
             else:
@@ -146,16 +132,19 @@ def main():
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             logging.error(message)
-            if message != last_message:
-                try:
-                    send_message(bot, message)
-                    last_message = message
-                except ApiException as send_error:
-                    logging.error(
-                        f'Ошибка при отправке сообщения в Telegram:'
-                        f'{send_error}'
-                    )
+            if message != last_message and send_message(bot, message):
+                last_message = message
         time.sleep(RETRY_PERIOD)
+
+
+logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s, %(levelname)s, %(message)s',
+        handlers=[
+            logging.StreamHandler(),
+            logging.FileHandler('bot.log')
+        ]
+    )
 
 
 if __name__ == '__main__':
